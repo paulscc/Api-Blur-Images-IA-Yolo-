@@ -106,9 +106,16 @@ def load_models():
 # Modelos globales
 model_placas = None
 model_rostros = None
+models_loaded = False
 
-# Cargar modelos al iniciar
-load_models()
+def ensure_models_loaded():
+    """Carga modelos la primera vez que se necesiten"""
+    global model_placas, model_rostros, models_loaded
+    
+    if not models_loaded:
+        logger.info("🔄 Primera vez - cargando modelos...")
+        load_models()
+        models_loaded = True
 
 # Diccionario para rastrear estado de procesamiento
 processing_status = {}
@@ -270,10 +277,11 @@ async def root():
 @app.get("/health")
 async def health_check():
     supabase_status = "connected" if supabase else "disconnected"
+    ensure_models_loaded()
     return {
         "status": "healthy",
         "supabase": supabase_status,
-        "models_loaded": True
+        "models_loaded": models_loaded
     }
 
 @app.post("/process-image")
@@ -283,6 +291,8 @@ async def process_image(file: UploadFile = File(...)):
     Retorna inmediatamente con task_id para consultar el estado
     """
     try:
+        ensure_models_loaded()
+        
         if not file.content_type.startswith('image/'):
             raise HTTPException(status_code=400, detail="El archivo debe ser una imagen")
         
