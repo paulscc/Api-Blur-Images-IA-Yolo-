@@ -10,6 +10,7 @@ from supabase import create_client, Client
 from dotenv import load_dotenv
 import io
 from datetime import datetime
+import torch
 
 # Cargar variables de entorno
 load_dotenv()
@@ -17,6 +18,14 @@ load_dotenv()
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Fix para PyTorch 2.6+ - Allowlist ultralytics classes
+try:
+    from ultralytics.nn.tasks import DetectionModel
+    torch.serialization.add_safe_globals([DetectionModel])
+    logger.info("✅ PyTorch safe globals configurado para ultralytics")
+except Exception as e:
+    logger.warning(f"⚠️  No se pudo configurar safe globals: {e}")
 
 # Inicializar FastAPI
 app = FastAPI(
