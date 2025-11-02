@@ -1,0 +1,7 @@
+*.pt
+*.pth
+*.onnx
+__pycache__
+.git
+.env
+node_modules
