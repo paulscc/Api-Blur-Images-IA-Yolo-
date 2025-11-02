@@ -2,7 +2,6 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
 import cv2
 import numpy as np
-from ultralytics import YOLO
 import os
 import uuid
 import logging
@@ -11,6 +10,8 @@ from dotenv import load_dotenv
 import io
 from datetime import datetime
 import torch
+import pickle
+import sys
 
 # Cargar variables de entorno
 load_dotenv()
@@ -19,13 +20,27 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Fix para PyTorch 2.6+ - Allowlist ultralytics classes
-try:
-    from ultralytics.nn.tasks import DetectionModel
-    torch.serialization.add_safe_globals([DetectionModel])
-    logger.info("✅ PyTorch safe globals configurado para ultralytics")
-except Exception as e:
-    logger.warning(f"⚠️  No se pudo configurar safe globals: {e}")
+# Fix para PyTorch 2.6+ - Patch torch.load antes de cargar ultralytics
+def patch_torch_load():
+    """Parcha torch.load para permitir cargar modelos de ultralytics con PyTorch 2.6+"""
+    original_load = torch.load
+    
+    def patched_load(f, map_location=None, weights_only=None, **kwargs):
+        try:
+            # Intenta cargar con weights_only=False para ultralytics
+            return original_load(f, map_location=map_location, weights_only=False, **kwargs)
+        except Exception as e:
+            logger.error(f"Error en patched load: {e}")
+            raise
+    
+    torch.load = patched_load
+    logger.info("✅ torch.load parcheado para PyTorch 2.6+ compatibility")
+
+# Aplicar el parche antes de importar YOLO
+patch_torch_load()
+
+# Ahora importar YOLO
+from ultralytics import YOLO
 
 # Inicializar FastAPI
 app = FastAPI(
