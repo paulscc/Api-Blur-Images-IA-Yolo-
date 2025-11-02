@@ -8,3 +8,4 @@ pillow==10.3.0
 supabase==2.7.1
 python-dotenv==1.0.1
 numpy==1.26.4
+torch>=2.0.0
