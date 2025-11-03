@@ -61,42 +61,58 @@ except Exception as e:
     logger.error(f"❌ Error inicializando Supabase: {e}")
     supabase = None
 
-# Cargar modelos YOLO - Descargar de internet si no existen
-def load_models():
-    """Carga modelos YOLO. Si no existen, los descarga de Hugging Face"""
-    global model_placas, model_rostros
-    
-    model_placas = None
-    model_rostros = None
+# Descargar modelos de GitHub en el build
+import urllib.request
+import shutil
+
+def download_model(url, filename):
+    """Descarga un modelo de GitHub"""
+    if os.path.exists(filename):
+        logger.info(f"✅ {filename} ya existe")
+        return
     
     try:
-        logger.info("Cargando modelos YOLO...")
+        logger.info(f"📥 Descargando {filename}...")
+        urllib.request.urlretrieve(url, filename)
+        logger.info(f"✅ {filename} descargado")
+    except Exception as e:
+        logger.error(f"❌ Error descargando {filename}: {e}")
+        raise e
+
+def load_models():
+    """Carga modelos YOLO - descargar de GitHub si no existen"""
+    global model_placas, model_rostros
+    
+    try:
+        logger.info("🔄 Cargando modelos YOLO...")
         
-        # Intenta cargar desde archivos locales
-        if os.path.exists('license-plate-finetune-v1n.pt'):
-            model_placas = YOLO('license-plate-finetune-v1n.pt')
-            logger.info("✅ Modelo placas (local) cargado")
+        # URLs de GitHub (reemplaza con tus URLs)
+        # Ejemplo: https://github.com/tu-usuario/tu-repo/raw/main/models/license-plate-finetune-v1s.pt
+        GITHUB_URL_PLACAS = os.getenv("GITHUB_URL_PLACAS", "")
+        GITHUB_URL_ROSTROS = os.getenv("GITHUB_URL_ROSTROS", "")
+        
+        # Descargar modelos si tienen URLs
+        if GITHUB_URL_PLACAS:
+            download_model(GITHUB_URL_PLACAS, 'license-plate-model.pt')
+            model_placas = YOLO('license-plate-model.pt')
         elif os.path.exists('license-plate-finetune-v1s.pt'):
             model_placas = YOLO('license-plate-finetune-v1s.pt')
-            logger.info("✅ Modelo placas (local) cargado")
         else:
-            # Descargar modelo oficial de YOLOv8
-            logger.info("Descargando modelo de placas...")
-            model_placas = YOLO('yolov8s.pt')  # Modelo genérico
-            logger.info("✅ Modelo placas descargado")
+            logger.warning("⚠️  No se encontró modelo de placas, usando genérico")
+            model_placas = YOLO('yolov8s.pt')
         
-        if os.path.exists('yolov8n-face.pt'):
-            model_rostros = YOLO('yolov8n-face.pt')
-            logger.info("✅ Modelo rostros (local) cargado")
+        logger.info("✅ Modelo de placas cargado")
+        
+        if GITHUB_URL_ROSTROS:
+            download_model(GITHUB_URL_ROSTROS, 'face-model.pt')
+            model_rostros = YOLO('face-model.pt')
         elif os.path.exists('model.pt'):
             model_rostros = YOLO('model.pt')
-            logger.info("✅ Modelo rostros (local) cargado")
         else:
-            # Descargar modelo nano
-            logger.info("Descargando modelo de rostros...")
+            logger.warning("⚠️  No se encontró modelo de rostros, usando genérico")
             model_rostros = YOLO('yolov8n.pt')
-            logger.info("✅ Modelo rostros descargado")
         
+        logger.info("✅ Modelo de rostros cargado")
         logger.info("✅ Todos los modelos cargados correctamente")
         
     except Exception as e:
